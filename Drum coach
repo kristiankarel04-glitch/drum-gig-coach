@@ -1,0 +1,289 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Factory } from 'vexflow';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'search' | 'player' | 'coach' | 'live'>('dashboard');
+  
+  // State untuk Katalog & Auto-Generation
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadingStep, setLoadingStep] = useState<string | null>(null);
+  const [activeSong, setActiveSong] = useState({ title: 'Great Are You Lord', artist: 'All Sons & Daughters', genre: 'Worship' });
+
+  // State untuk Score Player
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [bpm, setBpm] = useState(120);
+  const [currentBeat, setCurrentBeat] = useState(1);
+  const [speed, setSpeed] = useState(1);
+  const scoreContainerRef = useRef<HTMLDivElement>(null);
+
+  // State untuk AI Coach
+  const [chatMessages, setChatMessages] = useState([
+    { sender: 'coach', text: 'Halo! Saya AI Drum Score Coach Anda. Ada bagian lagu atau ketukan yang ingin dibahas?' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+
+  // State untuk Live Performance Mode Setlist
+  const setlist = [
+    { title: 'Great Are You Lord', bpm: 72, notes: 'Intro ride cymbal lembut, masuk chorus energik.' },
+    { title: 'Rosanna', bpm: 94, notes: 'Gunakan half-time shuffle groove di verse.' },
+    { title: 'Hosanna (Praise Is Rising)', bpm: 128, notes: 'Fast tempo, pastikan ketukan hi-hat konstan.' }
+  ];
+  const [liveIdx, setLiveIdx] = useState(0);
+
+  // Efek Pemutar Skor & Metronom
+  useEffect(() => {
+    let interval: any;
+    if (isPlaying) {
+      const intervalTime = (60 / (bpm * speed)) * 1000;
+      interval = setInterval(() => {
+        setCurrentBeat(prev => (prev % 4) + 1);
+      }, intervalTime);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, bpm, speed]);
+
+  // Render Partitur VexFlow saat tab Player aktif
+  useEffect(() => {
+    if (activeTab === 'player' && scoreContainerRef.current) {
+      scoreContainerRef.current.innerHTML = ''; 
+      
+      try {
+        const vf = new Factory({
+          renderer: { elementId: scoreContainerRef.current, width: 340, height: 160 }
+        });
+
+        const score = vf.EasyScore();
+        const system = vf.System();
+
+        system.addStave({
+          voices: [
+            score.voice(score.notes('(C4 E4)/4, C4/4, (C4 E4)/4, C4/4', { stem: 'up' }))
+          ]
+        }).addClef('percussion').addTimeSignature('4/4');
+
+        vf.draw();
+      } catch (err) {
+        console.error("VexFlow render error:", err);
+      }
+    }
+  }, [activeTab]);
+
+  // Katalog Lagu
+  const catalogSongs = [
+    { id: '1', title: 'Great Are You Lord', artist: 'All Sons & Daughters', genre: 'Worship', isWorship: true },
+    { id: '2', title: 'Rosanna', artist: 'Toto', genre: 'Rock / Fusion', isWorship: false },
+    { id: '3', title: 'Hosanna (Praise Is Rising)', artist: 'Paul Baloche', genre: 'Worship', isWorship: true },
+    { id: '4', title: 'Keep Your Head Up', artist: 'Andy Grammer', genre: 'Pop', isWorship: false },
+  ];
+
+  // Fungsi Pipeline Auto-Generation
+  const handleAddAndGenerate = async (song: typeof catalogSongs[0]) => {
+    const steps = [
+      'Menambahkan lagu ke library...',
+      'Mengidentifikasi versi rekaman...',
+      'Mengecek ketersediaan audio resmi...',
+      'Menganalisis struktur ketukan & instrumen...',
+      'Mentranskripsi penampilan drum (AI Pipeline)...',
+      'Skor drum berhasil di-generate!'
+    ];
+
+    for (let step of steps) {
+      setLoadingStep(step);
+      await new Promise(resolve => setTimeout(resolve, 400));
+    }
+
+    setLoadingStep(null);
+    setActiveSong({ title: song.title, artist: song.artist, genre: song.genre });
+    setActiveTab('player');
+  };
+
+  // Fungsi Kirim Chat AI Coach
+  const handleSendChat = (textToSend?: string) => {
+    const query = textToSend || chatInput;
+    if (!query.trim()) return;
+    const newMsgs = [...chatMessages, { sender: 'user', text: query }];
+    setChatMessages(newMsgs);
+    setChatInput('');
+    setTimeout(() => {
+      setChatMessages([...newMsgs, { sender: 'coach', text: 'Pada ketukan tersebut, pukul Snare dengan tangan kanan (R) bersamaan dengan Kick drum, jaga tempo tetap stabil.' }]);
+    }, 600);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0B0F19] text-[#F3F4F6] flex flex-col pb-24 font-sans select-none">
+      
+      {/* Header Atas */}
+      <header className="bg-[#111827] border-b border-gray-800 px-4 py-3 flex justify-between items-center sticky top-0 z-50">
+        <div>
+          <span className="text-[10px] font-mono text-[#06B6D4] uppercase tracking-wider">Drum Gig Manager</span>
+          <h1 className="text-lg font-black text-white">Alex Drummer 🥁</h1>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#3B82F6] to-[#06B6D4] flex items-center justify-center font-bold text-xs text-white shadow-md">
+          AD
+        </div>
+      </header>
+
+      {/* Konten Utama */}
+      <main className="flex-1 p-4 max-w-lg mx-auto w-full">
+        
+        {activeTab === 'dashboard' && (
+          <div className="space-y-4">
+            <div className="bg-[#111827] p-5 rounded-2xl border border-gray-800 shadow-xl">
+              <h3 className="text-xl font-bold text-white mb-2">Master Your Score. Own Your Stage.</h3>
+              <p className="text-xs text-gray-300 leading-relaxed mb-4">
+                Platform profesional untuk drumer, worship musician, dan musisi panggung. Siap kelola skor, latihan, dan jadwal gig hari ini?
+              </p>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setActiveTab('live')}
+                  className="flex-1 py-2.5 bg-[#3B82F6] hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg transition">
+                  🚀 Live Mode
+                </button>
+                <button 
+                  onClick={() => setActiveTab('search')}
+                  className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold rounded-xl border border-gray-700 transition">
+                  🔍 Cari Lagu
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#111827] p-4 rounded-xl border border-gray-800">
+                <p className="text-[10px] text-gray-400 font-mono">Total Lagu</p>
+                <h4 className="text-xl font-bold text-white mt-1">12 Lagu</h4>
+              </div>
+              <div className="bg-[#111827] p-4 rounded-xl border border-gray-800">
+                <p className="text-[10px] text-gray-400 font-mono">Jadwal Gig</p>
+                <h4 className="text-xl font-bold text-[#06B6D4] mt-1">2 Minggu Ini</h4>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'search' && (
+          <div className="bg-[#111827] p-5 rounded-2xl border border-gray-800 shadow-xl space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#06B6D4]">Global Song Search</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Pilih lagu untuk auto-generate skor drum secara otomatis.</p>
+            </div>
+
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari judul lagu atau artis..."
+              className="w-full p-3 bg-gray-900 border border-gray-700 rounded-xl text-xs text-white focus:outline-none focus:border-[#3B82F6]"
+            />
+
+            {loadingStep && (
+              <div className="p-3 bg-blue-950/60 border border-blue-500/50 rounded-xl text-center animate-pulse">
+                <p className="text-xs text-[#06B6D4] font-semibold">{loadingStep}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {catalogSongs
+                .filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.artist.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map(song => (
+                  <div key={song.id} className="p-3 bg-gray-900/80 rounded-xl border border-gray-800 flex justify-between items-center">
+                    <div>
+                      <h4 className="text-xs font-bold text-white">{song.title}</h4>
+                      <p className="text-[10px] text-gray-400">{song.artist} • <span className="text-[#06B6D4]">{song.genre}</span></p>
+                    </div>
+                    <button 
+                      onClick={() => handleAddAndGenerate(song)}
+                      disabled={!!loadingStep}
+                      className="px-3 py-1.5 bg-gradient-to-r from-[#3B82F6] to-[#06B6D4] text-white text-[10px] font-bold rounded-lg shadow disabled:opacity-50">
+                      Add & Generate
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'player' && (
+          <div className="bg-[#111827] p-5 rounded-2xl border border-gray-800 shadow-xl space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-base font-bold text-white">{activeSong.title}</h2>
+                <p className="text-[10px] text-gray-400">{activeSong.artist} • Tempo: {bpm} BPM</p>
+              </div>
+              <div className="flex gap-1">
+                {[0.5, 0.75, 1.0].map(s => (
+                  <button key={s} onClick={() => setSpeed(s)} className={`px-2 py-1 text-[10px] rounded ${speed === s ? 'bg-[#06B6D4] text-black font-bold' : 'bg-gray-800 text-gray-300'}`}>
+                    {s * 100}%
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white p-3 rounded-xl border border-gray-800 flex flex-col items-center justify-center min-h-[160px] overflow-x-auto">
+              <div ref={scoreContainerRef} className="w-full flex justify-center"></div>
+            </div>
+
+            <div className="flex gap-4 justify-around bg-gray-900 p-2.5 rounded-xl border border-gray-800">
+              {[1, 2, 3, 4].map(b => (
+                <div key={b} className={`flex flex-col items-center ${currentBeat === b && isPlaying ? 'scale-110' : 'opacity-40'}`}>
+                  <div className={`w-2.5 h-2.5 rounded-full mb-1 ${currentBeat === b && isPlaying ? 'bg-[#06B6D4] shadow-[0_0_8px_#06B6D4]' : 'bg-gray-700'}`}></div>
+                  <span className="text-[9px] font-mono text-gray-300">Beat {b}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between bg-gray-900 p-3 rounded-xl">
+              <button onClick={() => setIsPlaying(!isPlaying)} className="w-10 h-10 rounded-full bg-[#3B82F6] text-white font-bold flex items-center justify-center shadow-lg">
+                {isPlaying ? '⏸' : '▶'}
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-300">BPM:</span>
+                <input type="range" min="60" max="180" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="accent-[#06B6D4] w-24" />
+                <span className="font-mono text-xs text-[#06B6D4]">{bpm}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'coach' && (
+          <div className="bg-[#111827] p-5 rounded-2xl border border-gray-800 shadow-xl flex flex-col h-[420px]">
+            <h2 className="text-base font-bold text-[#06B6D4] mb-3">AI Drum Score Coach</h2>
+            <div className="flex-1 overflow-y-auto space-y-2 p-3 bg-gray-900 rounded-xl border border-gray-800 mb-3">
+              {chatMessages.map((m, i) => (
+                <div key={i} className={`p-2.5 rounded-xl text-xs max-w-[85%] ${m.sender === 'user' ? 'bg-[#3B82F6] text-white ml-auto' : 'bg-gray-800 text-gray-200 mr-auto'}`}>
+                  {m.text}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                value={chatInput} 
+                onChange={(e) => setChatInput(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && handleSendChat()} 
+                placeholder="Tanyakan teknik atau ketukan..." 
+                className="flex-1 p-2.5 bg-gray-900 border border-gray-700 rounded-xl text-xs text-white focus:outline-none focus:border-[#3B82F6]" 
+              />
+              <button onClick={() => handleSendChat()} className="px-4 py-2.5 bg-[#3B82F6] text-white rounded-xl text-xs font-bold">Kirim</button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'live' && (
+          <div className="bg-black p-5 rounded-2xl border border-gray-800 shadow-xl text-white flex flex-col justify-between min-h-[380px]">
+            <div>
+              <div className="flex justify-between items-center border-b border-gray-800 pb-3 mb-4">
+                <div>
+                  <span className="text-[10px] font-mono text-[#06B6D4] uppercase">Stage Live Mode</span>
+                  <h1 className="text-xl font-black mt-0.5">{setlist[liveIdx].title}</h1>
+                </div>
+                <div className="text-2xl font-mono font-bold text-[#3B82F6]">{setlist[liveIdx].bpm} <span className="text-xs text-gray-400">BPM</span></div>
+              </div>
+              <div className="bg-[#0B0F19] p-5 rounded-xl border border-gray-800 text-center mb-4">
+                <div className="text-sm font-bold text-[#06B6D4] mb-2">🎵 [ GROOVE PATTERN ACTIVE ] 🎵</div>
+                <p className="text-xs text-gray-300">💡 <span className="font-semibold text-white">Catatan:</span> {setlist[liveIdx].notes}</p>
+              </div>
+            </div>
+            <div className="flex justify-between pt-3 border-t border-gray-800">
+              <button onClick={() => setLiveIdx(Math.max(0, liveIdx - 1))} disabled={liveIdx === 0} className="px-4 py-2 bg-gray-800 rounded-xl text-xs font-bold disabled:opacity-30">◀ Prev</button>
+              <span className="text-xs text-gray-400 font-mono self-center">Song {liveIdx + 1} / {setlist.length}</span>
+              <button onClick={() => setLiveIdx(Math.min(setlist.length - 1, liveIdx + 1))} disabled={liveIdx === setlist.length - 1} className="
